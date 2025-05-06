@@ -1,8 +1,5 @@
-var mysql = require('mysql2')
-var config = require('config')
-var dbConfig = config.get('dbConfig')
-var db = mysql.createConnection(dbConfig);
-var helper = require('./helpers')
+const pool = require('../config/db_connection');
+const helper = require('./helpers');
 
 if(config.has('optionalFeature.detail')) {
     var detail = config.get('optionalFeature.detail');
@@ -60,32 +57,19 @@ function reconnect(connection, callback) {
 }
 
 module.exports = {
-    query: (sqlQuery, args, callback) => {
-
-        if(db.state === 'authenticated' || db.state === "connected") {
-            db.query(sqlQuery, args, (error, result) => {
-                return callback(error, result);
-            })
-        }else if ( db.state === "protocol_error" ) {
-            reconnect(db, () => {
-                db.query(sqlQuery, args, (error, result) => {
-                    return callback(error, result);
-                })
-            })
-        }else{
-            reconnect(db, ()=>{
-                db.query(sqlQuery, args, (error, result ) => {
-                    return callback(error, result);
-                } )
-            })
+    query: async (sqlQuery, args) => {
+        try {
+            const [rows] = await pool.query(sqlQuery, args);
+            return [null, rows];
+        } catch (error) {
+            helper.Dlog('Database query error: ' + error.message);
+            return [error, null];
         }
-
     }
-}
+};
 
 process.on('uncaughtException', (err) => {
-
-    helper.Dlog('------------------------ App is Crash DB helper (' + helper.serverYYYYMMDDHHmmss() + ')-------------------------' );
+    helper.Dlog('------------------------ App is Crash DB helper (' + helper.serverYYYYMMDDHHmmss() + ')-------------------------');
     helper.Dlog(err.code);
     helper.ThrowHtmlError(err);
-})
+});
