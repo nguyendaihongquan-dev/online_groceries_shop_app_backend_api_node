@@ -10,7 +10,7 @@ services:
     environment:
       - DB_HOST=mysql
       - DB_USER=root
-      - DB_PASSWORD=rootpassword
+      - DB_PASSWORD=27102002
       - DB_NAME=groceries
       - DB_PORT=3306
       - DB_TIMEZONE=utc+5:30
@@ -19,7 +19,7 @@ services:
       - JWT_SECRET=online_groceries_shop_secret_key_2024
       - UPLOAD_PATH=uploads/
       - MAX_FILE_SIZE=5242880
-      - CORS_ORIGIN=https://your-frontend-domain.com
+      - CORS_ORIGIN=http://160.250.132.211:3000
       - RATE_LIMIT_WINDOW_MS=900000
       - RATE_LIMIT_MAX=100
     volumes:
@@ -36,7 +36,7 @@ services:
     ports:
       - "127.0.0.1:3306:3306"
     environment:
-      - MYSQL_ROOT_PASSWORD=rootpassword
+      - MYSQL_ROOT_PASSWORD=27102002
       - MYSQL_DATABASE=groceries
     volumes:
       - mysql_data:/var/lib/mysql
