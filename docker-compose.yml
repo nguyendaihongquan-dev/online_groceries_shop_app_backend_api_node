@@ -1,4 +1,4 @@
-version: '3.8'
+version: '2'  # hoặc '2.4' nếu muốn
 
 services:
   app:
@@ -26,8 +26,6 @@ services:
       - ./uploads:/usr/src/app/uploads
     depends_on:
       - mysql
-    networks:
-      - groceries-network
 
   mysql:
     image: mysql:8.0
@@ -41,12 +39,6 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
       - ./groceries.sql:/docker-entrypoint-initdb.d/groceries.sql
-    networks:
-      - groceries-network
-
-networks:
-  groceries-network:
-    driver: bridge
 
 volumes:
-  mysql_data: 
+  mysql_data:
