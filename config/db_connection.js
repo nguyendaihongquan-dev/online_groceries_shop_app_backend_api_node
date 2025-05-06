@@ -12,7 +12,12 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  charset: 'utf8mb4'
+  charset: 'utf8mb4',
+  connectTimeout: 60000,
+  acquireTimeout: 60000,
+  timeout: 60000,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 10000
 });
 
 // Test database connection
@@ -23,6 +28,7 @@ pool.getConnection()
   })
   .catch(err => {
     console.error('Error connecting to the database:', err);
+    process.exit(1);
   });
 
 module.exports = pool; 

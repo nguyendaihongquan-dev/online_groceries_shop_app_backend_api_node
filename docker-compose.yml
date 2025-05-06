@@ -32,7 +32,7 @@ services:
     container_name: groceries-mysql
     restart: always
     ports:
-      - "127.0.0.1:3307:3306"
+      - "160.250.132.211:3307:3306"
     environment:
       - MYSQL_ROOT_PASSWORD=27102002
       - MYSQL_DATABASE=groceries
