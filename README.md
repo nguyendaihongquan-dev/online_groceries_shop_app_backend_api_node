@@ -81,3 +81,167 @@ sudo npm install -g express-generator
 
 ## Node app run:
 node app.js
+
+# Online Groceries Shop Backend API
+
+A Node.js backend API for an online groceries shopping application.
+
+## Features
+
+- User authentication and authorization
+- Product management
+- Shopping cart functionality
+- Order management
+- Real-time order status updates using Socket.IO
+- Admin dashboard with statistics and reports
+- Swagger API documentation
+
+## Prerequisites
+
+- Node.js >= 14.0.0
+- MySQL >= 5.7
+- npm or yarn
+
+## Installation
+
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd online-groceries-shop-backend
+```
+
+2. Install dependencies:
+```bash
+npm install
+```
+
+3. Create a `.env` file in the root directory with the following variables:
+```
+DB_HOST=localhost
+DB_USER=your_db_user
+DB_PASSWORD=your_db_password
+DB_NAME=groceries
+DB_PORT=3306
+DB_TIMEZONE=utc+5:30
+DB_MULTIPLE_STATEMENTS=true
+PORT=3002
+JWT_SECRET=your_jwt_secret
+```
+
+4. Import the database schema:
+```bash
+mysql -u your_db_user -p your_db_name < groceries.sql
+```
+
+## Running the Application
+
+Development mode:
+```bash
+npm run dev
+```
+
+Production mode:
+```bash
+npm start
+```
+
+The server will start on port 3002 (or the port specified in your .env file).
+
+## API Documentation
+
+The API documentation is available at `/api-docs` when the server is running. It provides detailed information about all available endpoints, request/response formats, and authentication requirements.
+
+## API Endpoints
+
+### Authentication
+- POST `/api/auth/register` - Register a new user
+- POST `/api/auth/login` - Login user
+
+### User Management
+- GET `/api/users/:userId` - Get user profile
+- PUT `/api/users/:userId` - Update user profile
+- PUT `/api/users/:userId/password` - Change password
+
+### Address Management
+- POST `/api/users/:userId/addresses` - Add delivery address
+- GET `/api/users/:userId/addresses` - Get user addresses
+- PUT `/api/users/:userId/addresses/:addressId` - Update address
+- DELETE `/api/users/:userId/addresses/:addressId` - Delete address
+
+### Products
+- GET `/api/products` - Get all products with filters
+- GET `/api/products/:id` - Get product by ID
+- GET `/api/products/recommendations/:userId` - Get personalized product recommendations
+
+### Cart
+- GET `/api/cart/:userId` - Get user's cart
+- POST `/api/cart` - Add item to cart
+- PUT `/api/cart/:cartId` - Update cart item quantity
+- DELETE `/api/cart/:cartId` - Remove item from cart
+- POST `/api/cart/checkout` - Checkout cart items
+
+### Orders
+- GET `/api/orders/:userId` - Get user's order history
+
+### Admin Routes
+- GET `/api/admin/dashboard` - Get dashboard statistics
+- GET `/api/admin/orders` - Get all orders with filters
+- PUT `/api/admin/orders/:orderId/status` - Update order status
+- GET `/api/admin/users` - Get all users with filters
+- PUT `/api/admin/users/:userId/status` - Update user status
+- GET `/api/admin/reports/sales` - Get sales report
+
+## Real-time Updates
+
+The application uses Socket.IO for real-time updates. Clients can connect to the WebSocket server and receive updates about their order status.
+
+To connect to the WebSocket server:
+```javascript
+const socket = io('http://localhost:3002');
+
+socket.on('connect', () => {
+  // Send user ID to associate socket with user
+  socket.emit('user_connect', userId);
+});
+
+socket.on('order_status', (data) => {
+  // Handle order status updates
+  console.log('Order status:', data);
+});
+```
+
+## Testing
+
+Run tests:
+```bash
+npm test
+```
+
+## Error Handling
+
+The API uses a centralized error handling mechanism. All errors are returned in the following format:
+```json
+{
+  "error": "Error message"
+}
+```
+
+## Security
+
+- JWT authentication for protected routes
+- Password hashing using bcrypt
+- Input validation using Joi
+- Rate limiting to prevent abuse
+- CORS enabled for specified origins
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a new Pull Request
+
+## License
+
+This project is licensed under the ISC License.

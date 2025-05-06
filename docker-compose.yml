@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: groceries-app
+    restart: always
+    ports:
+      - "3002:3002"
+    environment:
+      - DB_HOST=mysql
+      - DB_USER=root
+      - DB_PASSWORD=rootpassword
+      - DB_NAME=groceries
+      - DB_PORT=3306
+      - DB_TIMEZONE=utc+5:30
+      - DB_MULTIPLE_STATEMENTS=true
+      - PORT=3002
+      - JWT_SECRET=online_groceries_shop_secret_key_2024
+      - UPLOAD_PATH=uploads/
+      - MAX_FILE_SIZE=5242880
+      - CORS_ORIGIN=https://your-frontend-domain.com
+      - RATE_LIMIT_WINDOW_MS=900000
+      - RATE_LIMIT_MAX=100
+    volumes:
+      - ./uploads:/usr/src/app/uploads
+    depends_on:
+      - mysql
+    networks:
+      - groceries-network
+
+  mysql:
+    image: mysql:8.0
+    container_name: groceries-mysql
+    restart: always
+    ports:
+      - "127.0.0.1:3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootpassword
+      - MYSQL_DATABASE=groceries
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./groceries.sql:/docker-entrypoint-initdb.d/groceries.sql
+    networks:
+      - groceries-network
+
+networks:
+  groceries-network:
+    driver: bridge
+
+volumes:
+  mysql_data: 

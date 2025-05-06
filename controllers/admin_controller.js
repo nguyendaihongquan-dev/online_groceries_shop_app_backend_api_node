@@ -1753,6 +1753,260 @@ module.exports.controller = (app, io, socket_list) => {
         }, '2')
     })
 
+    // Get all orders with filters
+    app.get('/api/admin/orders', async (req, res) => {
+        try {
+            const { status, start_date, end_date, page = 1, limit = 10 } = req.query;
+            let query = `
+                SELECT o.*, u.username, u.full_name, u.phone,
+                GROUP_CONCAT(
+                    JSON_OBJECT(
+                        'cart_id', c.cart_id,
+                        'prod_id', c.prod_id,
+                        'quantity', c.quantity,
+                        'product_name', p.name,
+                        'product_price', p.price
+                    )
+                ) as items
+                FROM order_detail o
+                JOIN user_detail u ON o.user_id = u.user_id
+                JOIN cart_detail c ON FIND_IN_SET(c.cart_id, o.cart_id)
+                JOIN product_detail p ON c.prod_id = p.prod_id
+                WHERE 1=1
+            `;
+
+            const params = [];
+            if (status) {
+                query += ' AND o.status = ?';
+                params.push(status);
+            }
+            if (start_date) {
+                query += ' AND o.created_date >= ?';
+                params.push(start_date);
+            }
+            if (end_date) {
+                query += ' AND o.created_date <= ?';
+                params.push(end_date);
+            }
+
+            query += ' GROUP BY o.order_id ORDER BY o.created_date DESC';
+
+            const offset = (page - 1) * limit;
+            query += ' LIMIT ? OFFSET ?';
+            params.push(parseInt(limit), offset);
+
+            const [orders] = await db.query(query, params);
+
+            // Get total count for pagination
+            const [countResult] = await db.query(
+                'SELECT COUNT(*) as total FROM order_detail',
+                []
+            );
+            const total = countResult[0].total;
+
+            res.json({
+                orders,
+                pagination: {
+                    total,
+                    page: parseInt(page),
+                    limit: parseInt(limit),
+                    pages: Math.ceil(total / limit)
+                }
+            });
+        } catch (error) {
+            console.error('Error fetching orders:', error);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    });
+
+    // Update order status
+    app.put('/api/admin/orders/:orderId/status', async (req, res) => {
+        try {
+            const { status } = req.body;
+
+            // Get order details
+            const [order] = await db.query(
+                'SELECT * FROM order_detail WHERE order_id = ?',
+                [req.params.orderId]
+            );
+
+            if (!order.length) {
+                return res.status(404).json({ error: 'Order not found' });
+            }
+
+            // Update order status
+            await db.query(
+                'UPDATE order_detail SET status = ? WHERE order_id = ?',
+                [status, req.params.orderId]
+            );
+
+            // Notify user about order status change
+            if (socket_list[order[0].user_id]) {
+                io.to(socket_list[order[0].user_id]).emit('order_status', {
+                    orderId: req.params.orderId,
+                    status,
+                    message: `Your order status has been updated to ${status}`
+                });
+            }
+
+            res.json({ message: 'Order status updated successfully' });
+        } catch (error) {
+            console.error('Error updating order status:', error);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    });
+
+    // Get all users with filters
+    app.get('/api/admin/users', async (req, res) => {
+        try {
+            const { search, page = 1, limit = 10 } = req.query;
+            let query = `
+                SELECT user_id, username, email, phone, full_name, status, created_date
+                FROM user_detail
+                WHERE 1=1
+            `;
+
+            const params = [];
+            if (search) {
+                query += ' AND (username LIKE ? OR email LIKE ? OR full_name LIKE ?)';
+                params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+            }
+
+            query += ' ORDER BY created_date DESC';
+
+            const offset = (page - 1) * limit;
+            query += ' LIMIT ? OFFSET ?';
+            params.push(parseInt(limit), offset);
+
+            const [users] = await db.query(query, params);
+
+            // Get total count for pagination
+            const [countResult] = await db.query(
+                'SELECT COUNT(*) as total FROM user_detail',
+                []
+            );
+            const total = countResult[0].total;
+
+            res.json({
+                users,
+                pagination: {
+                    total,
+                    page: parseInt(page),
+                    limit: parseInt(limit),
+                    pages: Math.ceil(total / limit)
+                }
+            });
+        } catch (error) {
+            console.error('Error fetching users:', error);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    });
+
+    // Update user status
+    app.put('/api/admin/users/:userId/status', async (req, res) => {
+        try {
+            const { status } = req.body;
+
+            await db.query(
+                'UPDATE user_detail SET status = ? WHERE user_id = ?',
+                [status, req.params.userId]
+            );
+
+            res.json({ message: 'User status updated successfully' });
+        } catch (error) {
+            console.error('Error updating user status:', error);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    });
+
+    // Get dashboard statistics
+    app.get('/api/admin/dashboard', async (req, res) => {
+        try {
+            // Get total orders
+            const [totalOrders] = await db.query(
+                'SELECT COUNT(*) as total FROM order_detail'
+            );
+
+            // Get total revenue
+            const [totalRevenue] = await db.query(
+                'SELECT SUM(total) as total FROM order_detail WHERE status = 1'
+            );
+
+            // Get total users
+            const [totalUsers] = await db.query(
+                'SELECT COUNT(*) as total FROM user_detail WHERE status = 1'
+            );
+
+            // Get recent orders
+            const [recentOrders] = await db.query(`
+                SELECT o.*, u.username, u.full_name
+                FROM order_detail o
+                JOIN user_detail u ON o.user_id = u.user_id
+                ORDER BY o.created_date DESC
+                LIMIT 5
+            `);
+
+            // Get top selling products
+            const [topProducts] = await db.query(`
+                SELECT p.*, COUNT(c.cart_id) as order_count
+                FROM product_detail p
+                JOIN cart_detail c ON p.prod_id = c.prod_id
+                JOIN order_detail o ON FIND_IN_SET(c.cart_id, o.cart_id)
+                WHERE o.status = 1
+                GROUP BY p.prod_id
+                ORDER BY order_count DESC
+                LIMIT 5
+            `);
+
+            res.json({
+                statistics: {
+                    totalOrders: totalOrders[0].total,
+                    totalRevenue: totalRevenue[0].total || 0,
+                    totalUsers: totalUsers[0].total
+                },
+                recentOrders,
+                topProducts
+            });
+        } catch (error) {
+            console.error('Error fetching dashboard data:', error);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    });
+
+    // Get sales report
+    app.get('/api/admin/reports/sales', async (req, res) => {
+        try {
+            const { start_date, end_date } = req.query;
+
+            let query = `
+                SELECT 
+                    DATE(o.created_date) as date,
+                    COUNT(*) as order_count,
+                    SUM(o.total) as revenue
+                FROM order_detail o
+                WHERE o.status = 1
+            `;
+
+            const params = [];
+            if (start_date) {
+                query += ' AND o.created_date >= ?';
+                params.push(start_date);
+            }
+            if (end_date) {
+                query += ' AND o.created_date <= ?';
+                params.push(end_date);
+            }
+
+            query += ' GROUP BY DATE(o.created_date) ORDER BY date';
+
+            const [sales] = await db.query(query, params);
+
+            res.json(sales);
+        } catch (error) {
+            console.error('Error fetching sales report:', error);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    });
 }
 
 function saveImage(imageFile, savePath) {
